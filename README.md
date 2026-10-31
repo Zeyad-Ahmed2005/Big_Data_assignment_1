@@ -48,7 +48,7 @@ Raw CSVs live under `data/raw_data/`. Running `prepare_dataset.py` concatenates 
 ## Repository layout
 
 ```
-bd-a1/
+Big_Data_assignment_1/
 ├── Dockerfile                 # Jupyter SciPy image + NLTK
 ├── requirements.txt           # Extra pip deps (NLTK)
 ├── README.md
