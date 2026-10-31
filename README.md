@@ -66,30 +66,201 @@ Big_Data_assignment_1/
 
 ---
 
-## How to run
+## Docker concepts (quick)
 
-### Docker (recommended)
+### Image vs container
 
-The Dockerfile is based on `quay.io/jupyter/scipy-notebook` and installs NLTK from `requirements.txt`. It copies `data/dataset.csv` and `notebook/` into the container.
+| Term          | Meaning                                                                                                                                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Image**     | A read-only blueprint (OS layers + Python + Jupyter + this project’s files and deps). Built once with `docker build` / pulled with `docker pull`. Tagging names a specific image, e.g. `zeyadahmed2005/bd-asign1:latest`. |
+| **Container** | A running (or stopped) instance created from an image with `docker run`. You can start many containers from the same image; deleting a container does not delete the image.                                               |
 
-```bash
-docker build -f dockerfile -t youtube-spam .
-docker run --rm -p 8888:8888 youtube-spam
+Think of the image as a class and the container as an object: one image, many containers.
+
+### Port mapping: `HOST_PORT:CONTAINER_PORT`
+
+Jupyter inside the container listens on port **8888**. The flag `-p 8888:8888` means:
+
+```text
+-p HOST_PORT:CONTAINER_PORT
+     │           │
+     │           └── port inside the container (Jupyter)
+     └── port on your machine (browser)
 ```
 
-Open the printed Jupyter URL, launch `notebook/analysis.ipynb`, and **Run All**. Paths resolve relative to the project root (`SEED = 42` for reproducibility).
+So `-p 8888:8888` maps `http://localhost:8888` on your PC to port 8888 in the container. To avoid a conflict with another local Jupyter, use a different host port, e.g. `-p 8889:8888`, then open `http://localhost:8889`.
 
-### Rebuild the merged dataset
+---
 
-If you change files under `data/raw_data/`:
+## Prerequisites
+
+1. [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+2. From a terminal, confirm the engine is up:
+
+```bash
+docker version
+docker info
+```
+
+---
+
+## Setup, build, run, and mount
+
+All commands below assume your current directory is the project root (`Big_Data_assignment_1`).
+
+### 1. (Optional) Rebuild the merged CSV on the host
 
 ```bash
 python prepare_dataset.py
 ```
 
-### Local Jupyter (optional)
+### 2. Build the custom image
 
-The SciPy notebook image already provides pandas, NumPy, scikit-learn, matplotlib, seaborn, and Jupyter. Locally, install those plus NLTK, then open the notebook from the project root (or from `notebook/` — the notebook detects either layout):
+```bash
+docker build -f dockerfile -t youtube-spam:latest .
+```
+
+This uses `quay.io/jupyter/scipy-notebook:latest`, installs NLTK from `requirements.txt`, and copies `data/dataset.csv` plus `notebook/` into `/home/jovyan/work`.
+
+### 3. Tag for Docker Hub
+
+```bash
+docker tag youtube-spam:latest zeyadahmed2005/bd-asign1:latest
+```
+
+(Or build and tag in one step:)
+
+```bash
+docker build -f dockerfile -t youtube-spam:latest -t zeyadahmed2005/bd-asign1:latest .
+```
+
+### 4. Run without a volume mount (uses files baked into the image)
+
+```bash
+docker run --rm -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1:latest
+```
+
+- `--rm` removes the container when it stops
+- `-p 8888:8888` maps host ↔ container Jupyter port (see above)
+- `--name youtube-spam-run` gives the container a stable name
+
+Copy the token URL printed in the terminal (or open `http://localhost:8888` and paste the token). Open `notebook/analysis.ipynb` and **Run All** (`SEED = 42`).
+
+**Note:** Without a mount, files written under `/home/jovyan/work/output` live only inside the container and disappear when it is removed (`--rm`).
+
+### 5. Run with volume mounts (persist notebook edits and outputs on the host)
+
+**PowerShell (Windows):**
+
+```powershell
+docker run --rm -p 8888:8888 --name youtube-spam-run `
+  -v "${PWD}/data:/home/jovyan/work/data" `
+  -v "${PWD}/notebook:/home/jovyan/work/notebook" `
+  -v "${PWD}/output:/home/jovyan/work/output" `
+  zeyadahmed2005/bd-asign1:latest
+```
+
+**bash / macOS / Linux / Git Bash:**
+
+```bash
+docker run --rm -p 8888:8888 --name youtube-spam-run \
+  -v "$(pwd)/data:/home/jovyan/work/data" \
+  -v "$(pwd)/notebook:/home/jovyan/work/notebook" \
+  -v "$(pwd)/output:/home/jovyan/work/output" \
+  zeyadahmed2005/bd-asign1:latest
+```
+
+| Mount                                     | Purpose                                                |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `data` → `/home/jovyan/work/data`         | Use / update host dataset from the container           |
+| `notebook` → `/home/jovyan/work/notebook` | Edit the notebook on the host; changes persist         |
+| `output` → `/home/jovyan/work/output`     | Write `cleaned_data.csv`, metrics, figures to the host |
+
+### Useful container commands
+
+```bash
+docker ps                          # list running containers
+docker logs youtube-spam-run       # Jupyter URL / token if you lost it
+docker stop youtube-spam-run       # stop the container
+docker images                      # list local images
+docker rmi youtube-spam:latest     # remove a local image tag (optional cleanup)
+```
+
+---
+
+## Docker Hub
+
+| Field              | Value                                             |
+| ------------------ | ------------------------------------------------- |
+| **Registry**       | [Docker Hub](https://hub.docker.com/)             |
+| **Username**       | `zeyadahmed2005`                                  |
+| **Repository**     | `bd-asign1`                                       |
+| **Image**          | `zeyadahmed2005/bd-asign1`                        |
+| **Tag**            | `latest`                                          |
+| **Full reference** | `zeyadahmed2005/bd-asign1:latest`                 |
+| **Hub page**       | https://hub.docker.com/r/zeyadahmed2005/bd-asign1 |
+
+### Push (maintainers)
+
+```bash
+docker login
+docker push zeyadahmed2005/bd-asign1:latest
+```
+
+### Pull and run (anyone reproducing from Docker Hub only)
+
+Hub page: https://hub.docker.com/r/zeyadahmed2005/bd-asign1
+
+```bash
+docker pull zeyadahmed2005/bd-asign1
+docker run --rm -p 8888:8888 zeyadahmed2005/bd-asign1
+```
+
+(`docker pull` uses the `latest` tag by default when none is specified.)
+
+---
+
+## Full reproduction checklist
+
+### A. From this repository (build locally)
+
+```bash
+# 1. Clone / open the project, then enter the project root
+cd Big_Data_assignment_1
+
+# 2. Confirm Docker is running
+docker version
+
+# 3. (Optional) refresh merged data
+python prepare_dataset.py
+
+# 4. Build and tag
+docker build -f dockerfile -t youtube-spam:latest -t zeyadahmed2005/bd-asign1:latest .
+
+# 5. Run with mounts so outputs land on the host (PowerShell example)
+docker run --rm -p 8888:8888 --name youtube-spam-run `
+  -v "${PWD}/data:/home/jovyan/work/data" `
+  -v "${PWD}/notebook:/home/jovyan/work/notebook" `
+  -v "${PWD}/output:/home/jovyan/work/output" `
+  zeyadahmed2005/bd-asign1:latest
+
+# 6. In the browser: open the Jupyter URL → notebook/analysis.ipynb → Run All
+# 7. Confirm host files under output/: cleaned_data.csv, model_metrics.txt, cluster_summary.txt
+```
+
+### B. From Docker Hub only (no local build)
+
+```bash
+docker pull zeyadahmed2005/bd-asign1
+docker run --rm -p 8888:8888 zeyadahmed2005/bd-asign1
+# Open Jupyter → notebook/analysis.ipynb → Run All
+```
+
+---
+
+## Local Jupyter (optional, without Docker)
+
+The SciPy notebook image already provides pandas, NumPy, scikit-learn, matplotlib, seaborn, and Jupyter. Locally:
 
 ```bash
 pip install pandas numpy scikit-learn matplotlib seaborn nltk jupyter
