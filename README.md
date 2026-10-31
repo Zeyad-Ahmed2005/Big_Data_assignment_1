@@ -13,6 +13,8 @@ Spam detection and unsupervised clustering on public YouTube comments from five 
 
 ---
 
+## Github Link: https://github.com/Zeyad-Ahmed2005/Big_Data_assignment_1
+
 ## Overview
 
 This project builds an end-to-end text analytics pipeline on the [YouTube Spam Collection](https://archive.ics.uci.edu/dataset/380/youtube+spam+collection):
@@ -223,7 +225,7 @@ Screenshots of the build, `docker images`, `docker ps`, `docker ps -a`, `docker 
 | **Full reference** | `zeyadahmed2005/bd-asign1:latest`                 |
 | **Hub page**       | https://hub.docker.com/r/zeyadahmed2005/bd-asign1 |
 
-The published image was pulled and run successfully by **Mohamed Abdellatif** on **1 November 2026** (screenshots in `screenshots/`).
+The published image was pulled and run successfully by **Mohamed Abdellatif** on **31 October 2026** (screenshots in `screenshots/`).
 
 ### Push (maintainers)
 
