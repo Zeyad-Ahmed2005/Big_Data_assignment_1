@@ -137,23 +137,22 @@ docker build -f dockerfile -t youtube-spam:latest -t zeyadahmed2005/bd-asign1:la
 ### 4. Run without a volume mount (uses files baked into the image)
 
 ```bash
-docker run --rm -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1:latest
+docker run -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1:latest
 ```
 
-- `--rm` removes the container when it stops
 - `-p 8888:8888` maps host ↔ container Jupyter port (see above)
-- `--name youtube-spam-run` gives the container a stable name
+- `--name youtube-spam-run` gives the container a stable name so you can stop/start it easily
 
 Copy the token URL printed in the terminal (or open `http://localhost:8888` and paste the token). Open `notebook/analysis.ipynb` and **Run All** (`SEED = 42`).
 
-**Note:** Without a mount, files written under `/home/jovyan/work/output` live only inside the container and disappear when it is removed (`--rm`).
+**Note:** Without a volume mount, notebook outputs stay **inside this container**. That is fine if you keep the container (no `--rm`); use `docker start` to resume. To also keep copies on your Windows/Mac folders, use the mounts in step 5.
 
 ### 5. Run with volume mounts (persist notebook edits and outputs on the host)
 
 **PowerShell (Windows):**
 
 ```powershell
-docker run --rm -p 8888:8888 --name youtube-spam-run `
+docker run -p 8888:8888 --name youtube-spam-run `
   -v "${PWD}/data:/home/jovyan/work/data" `
   -v "${PWD}/notebook:/home/jovyan/work/notebook" `
   -v "${PWD}/output:/home/jovyan/work/output" `
@@ -163,7 +162,7 @@ docker run --rm -p 8888:8888 --name youtube-spam-run `
 **bash / macOS / Linux / Git Bash:**
 
 ```bash
-docker run --rm -p 8888:8888 --name youtube-spam-run \
+docker run -p 8888:8888 --name youtube-spam-run \
   -v "$(pwd)/data:/home/jovyan/work/data" \
   -v "$(pwd)/notebook:/home/jovyan/work/notebook" \
   -v "$(pwd)/output:/home/jovyan/work/output" \
@@ -176,12 +175,25 @@ docker run --rm -p 8888:8888 --name youtube-spam-run \
 | `notebook` → `/home/jovyan/work/notebook` | Edit the notebook on the host; changes persist         |
 | `output` → `/home/jovyan/work/output`     | Write `cleaned_data.csv`, metrics, figures to the host |
 
+### Stop and continue later (same container)
+
+```bash
+docker stop youtube-spam-run      # pause work; container is kept
+docker start youtube-spam-run     # resume the same container anytime
+docker start -a youtube-spam-run  # resume and attach logs (token/URL in the terminal)
+```
+
+If the name `youtube-spam-run` already exists from a previous `docker run`, do **not** run `docker run` again — use `docker start` instead. Only create a new container if you removed the old one.
+
 ### Useful container commands
 
 ```bash
 docker ps                          # list running containers
+docker ps -a                       # list all containers (including stopped)
 docker logs youtube-spam-run       # Jupyter URL / token if you lost it
-docker stop youtube-spam-run       # stop the container
+docker stop youtube-spam-run       # stop (keeps the container)
+docker start youtube-spam-run      # start again later
+docker rm youtube-spam-run         # delete the container only when you no longer need it
 docker images                      # list local images
 docker rmi youtube-spam:latest     # remove a local image tag (optional cleanup)
 ```
@@ -213,10 +225,10 @@ Hub page: https://hub.docker.com/r/zeyadahmed2005/bd-asign1
 
 ```bash
 docker pull zeyadahmed2005/bd-asign1
-docker run --rm -p 8888:8888 zeyadahmed2005/bd-asign1
+docker run -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1
 ```
 
-(`docker pull` uses the `latest` tag by default when none is specified.)
+(`docker pull` uses the `latest` tag by default when none is specified. Omit `--rm` so you can `docker start youtube-spam-run` later.)
 
 ---
 
@@ -237,12 +249,14 @@ python prepare_dataset.py
 # 4. Build and tag
 docker build -f dockerfile -t youtube-spam:latest -t zeyadahmed2005/bd-asign1:latest .
 
-# 5. Run with mounts so outputs land on the host (PowerShell example)
-docker run --rm -p 8888:8888 --name youtube-spam-run `
+# 5. Run with mounts so outputs land on the host (PowerShell example; no --rm so you can resume)
+docker run -p 8888:8888 --name youtube-spam-run `
   -v "${PWD}/data:/home/jovyan/work/data" `
   -v "${PWD}/notebook:/home/jovyan/work/notebook" `
   -v "${PWD}/output:/home/jovyan/work/output" `
   zeyadahmed2005/bd-asign1:latest
+
+# Later sessions: docker start -a youtube-spam-run   (do not docker run again)
 
 # 6. In the browser: open the Jupyter URL → notebook/analysis.ipynb → Run All
 # 7. Confirm host files under output/: cleaned_data.csv, model_metrics.txt, cluster_summary.txt
@@ -252,8 +266,9 @@ docker run --rm -p 8888:8888 --name youtube-spam-run `
 
 ```bash
 docker pull zeyadahmed2005/bd-asign1
-docker run --rm -p 8888:8888 zeyadahmed2005/bd-asign1
+docker run -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1
 # Open Jupyter → notebook/analysis.ipynb → Run All
+# Later: docker start -a youtube-spam-run
 ```
 
 ---
