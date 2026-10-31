@@ -223,7 +223,7 @@ Screenshots of the build, `docker images`, `docker ps`, `docker ps -a`, `docker 
 | **Full reference** | `zeyadahmed2005/bd-asign1:latest`                 |
 | **Hub page**       | https://hub.docker.com/r/zeyadahmed2005/bd-asign1 |
 
-The published image was pulled and run successfully by **TODO: teammate name** on **TODO: date** (screenshots in `screenshots/`).
+The published image was pulled and run successfully by **Mohamed Abdellatif** on **1 November 2026** (screenshots in `screenshots/`).
 
 ### Push (maintainers)
 
