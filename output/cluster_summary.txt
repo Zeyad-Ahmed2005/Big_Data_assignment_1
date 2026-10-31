@@ -1,0 +1,52 @@
+K-MEANS CLUSTERING SUMMARY - YouTube Spam Collection
+============================================================
+Records clustered : 1753
+Representation    : TF-IDF (stop words removed, min_df=2) -> TruncatedSVD (100 components) -> L2 normalisation
+k tried           : 2..8 | k used: 8 (highest silhouette unless changed manually)
+Silhouette score  : 0.1047  (range -1..1; values near 0 mean overlapping clusters)
+
+Silhouette / inertia per k:
+     inertia  silhouette
+k                       
+2  1548.7107      0.0545
+3  1492.3710      0.0668
+4  1442.0432      0.0763
+5  1396.1168      0.0859
+6  1364.8630      0.0906
+7  1323.5923      0.1006
+8  1303.2281      0.1047
+
+Cluster sizes and interpretation:
+- Cluster 0: 717 records | 0.0% spam -> mostly legitimate (not spam) | most common video: Eminem
+    top terms: like, music, just, good, im, check, video, eminem, channel, best
+- Cluster 1: 170 records | 0.0% spam -> mostly legitimate (not spam) | most common video: Eminem
+    top terms: check, youtube, video, channel, playlist, new, music, hey, thanks, eminem
+- Cluster 2: 132 records | 0.0% spam -> mostly legitimate (not spam) | most common video: LMFAO
+    top terms: subscribe, channel, like, videos, ill, guys, num, hey, check, thanks
+- Cluster 3: 139 records | 0.0% spam -> mostly legitimate (not spam) | most common video: Shakira
+    top terms: song, best, good, like, old, just, world, nice, beautiful, awesome
+- Cluster 4: 118 records | 0.0% spam -> mostly legitimate (not spam) | most common video: Shakira
+    top terms: love, song, shakira, lie, way, eminem, num, songs, nice, old
+- Cluster 5: 60 records | 0.0% spam -> mostly legitimate (not spam) | most common video: KatyPerry
+    top terms: katy, perry, love, num, roar, songs, official, like, great, url
+- Cluster 6: 246 records | 0.0% spam -> mostly legitimate (not spam) | most common video: Psy
+    top terms: num, views, billion, watching, like, video, years, million, people, subscribers
+- Cluster 7: 171 records | 0.0% spam -> mostly legitimate (not spam) | most common video: KatyPerry
+    top terms: url, num, money, check, make, visit, online, today, website, month
+
+Clusters vs true labels (counts):
+LABEL    Not Spam  Spam
+cluster                
+0             452   265
+1              18   152
+2               0   132
+3             121    18
+4             106    12
+5              47    13
+6             169    77
+7               0   171
+
+Adjusted Rand Index vs spam/not spam labels: 0.082
+
+Comparison with the known labels:
+K-Means is unsupervised, so cluster ids are arbitrary and do not have to equal the class ids. Clusters are compared with the labels only afterwards, by looking at the share of spam inside each cluster. A cluster that is mostly spam (or mostly not spam) means the words alone separate part of the classes; mixed clusters mean the grouping follows other themes (e.g. praise, a specific artist, short reactions) instead of spam vs not spam.
