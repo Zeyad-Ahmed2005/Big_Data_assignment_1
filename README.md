@@ -39,7 +39,7 @@ This project builds an end-to-end text analytics pipeline on the [YouTube Spam C
 | `CLASS`      | `1` = spam, `0` = not spam                                                           |
 | `VIDEO`      | Source video (added by `prepare_dataset.py`): Psy, KatyPerry, LMFAO, Eminem, Shakira |
 
-Raw CSVs live under `data/raw_data/`. Running `prepare_dataset.py` concatenates them and writes `data/dataset.csv` (1,953 rows before notebook cleaning; 1,753 after removing empty and duplicate comments).
+Raw CSVs live under `data/raw_data/`. Running `prepare_dataset.py` concatenates them and writes `data/dataset.csv` (1,956 rows before notebook cleaning; 1,759 after removing empty and duplicate comments; 1,753 after dropping comments that are empty once cleaned).
 
 **Citation:** Alberto, T. C., Lochter, J. V., & Almeida, T. A. (2015). _TubeSpam: Comment Spam Filtering on YouTube_. IEEE ICMLA. Dataset hosted on the [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/380/youtube+spam+collection).
 
@@ -48,7 +48,11 @@ Raw CSVs live under `data/raw_data/`. Running `prepare_dataset.py` concatenates 
 ## Repository layout
 
 ```
-Big_Data_assignment_1/
+bd-a1/
+├── Dockerfile                 # Jupyter SciPy image + NLTK
+├── requirements.txt           # Extra pip deps (NLTK)
+├── README.md
+├── prepare_dataset.py         # Merge raw CSVs → dataset.csv
 ├── data/
 │   ├── raw_data/              # Per-video YouTube Spam Collection CSVs
 │   └── dataset.csv            # Merged dataset (+ VIDEO column)
@@ -57,11 +61,10 @@ Big_Data_assignment_1/
 ├── output/
 │   ├── cleaned_data.csv       # Cleaned features + cluster assignments
 │   ├── model_metrics.txt      # Supervised metrics and interpretation
-│   └── cluster_summary.txt    # K-Means silhouette, sizes, top terms
-├── prepare_dataset.py         # Merge raw CSVs → dataset.csv
-├── dockerfile                 # Jupyter SciPy image + NLTK
-├── requirements.txt           # Extra pip deps (NLTK)
-└── README.md
+│   ├── cluster_summary.txt    # K-Means silhouette, sizes, top terms
+│   └── figures/               # 7 PNGs: correlation_heatmap, word_frequency, group_comparison,
+│                              #   confusion_matrix, sampling_comparison, kmeans_k_selection, cluster_plot
+└── screenshots/               # Docker evidence (build, images, ps, logs, inspect, Jupyter, Docker Hub)
 ```
 
 ---
@@ -106,7 +109,7 @@ docker info
 
 ## Setup, build, run, and mount
 
-All commands below assume your current directory is the project root (`Big_Data_assignment_1`).
+All commands below assume your current directory is the project root (`bd-a1`).
 
 ### 1. (Optional) Rebuild the merged CSV on the host
 
@@ -117,7 +120,7 @@ python prepare_dataset.py
 ### 2. Build the custom image
 
 ```bash
-docker build -f dockerfile -t youtube-spam:latest .
+docker build -t bd-asign1:latest .
 ```
 
 This uses `quay.io/jupyter/scipy-notebook:latest`, installs NLTK from `requirements.txt`, and copies `data/dataset.csv` plus `notebook/` into `/home/jovyan/work`.
@@ -125,16 +128,16 @@ This uses `quay.io/jupyter/scipy-notebook:latest`, installs NLTK from `requireme
 ### 3. Tag for Docker Hub
 
 ```bash
-docker tag youtube-spam:latest zeyadahmed2005/bd-asign1:latest
+docker tag bd-asign1:latest zeyadahmed2005/bd-asign1:latest
 ```
 
 (Or build and tag in one step:)
 
 ```bash
-docker build -f dockerfile -t youtube-spam:latest -t zeyadahmed2005/bd-asign1:latest .
+docker build -t bd-asign1:latest -t zeyadahmed2005/bd-asign1:latest .
 ```
 
-### 4. Run without a volume mount (uses files baked into the image)
+### 4. Run without a bind mount (uses files baked into the image)
 
 ```bash
 docker run -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1:latest
@@ -145,15 +148,20 @@ docker run -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1:latest
 
 Copy the token URL printed in the terminal (or open `http://localhost:8888` and paste the token). Open `notebook/analysis.ipynb` and **Run All** (`SEED = 42`).
 
-**Note:** Without a volume mount, notebook outputs stay **inside this container**. That is fine if you keep the container (no `--rm`); use `docker start` to resume. To also keep copies on your Windows/Mac folders, use the mounts in step 5.
+**Note:** Without a bind mount, notebook outputs stay **inside this container** and are lost if it is removed. Use step 5 so results persist on the host.
 
-### 5. Run with volume mounts (persist notebook edits and outputs on the host)
+### 5. Run with bind mounts (persist notebook edits and outputs on the host)
+
+**Windows Command Prompt:**
+
+```bat
+docker run -p 8888:8888 --name youtube-spam-run -v "%cd%\notebook:/home/jovyan/work/notebook" -v "%cd%\output:/home/jovyan/work/output" zeyadahmed2005/bd-asign1:latest
+```
 
 **PowerShell (Windows):**
 
 ```powershell
 docker run -p 8888:8888 --name youtube-spam-run `
-  -v "${PWD}/data:/home/jovyan/work/data" `
   -v "${PWD}/notebook:/home/jovyan/work/notebook" `
   -v "${PWD}/output:/home/jovyan/work/output" `
   zeyadahmed2005/bd-asign1:latest
@@ -163,7 +171,6 @@ docker run -p 8888:8888 --name youtube-spam-run `
 
 ```bash
 docker run -p 8888:8888 --name youtube-spam-run \
-  -v "$(pwd)/data:/home/jovyan/work/data" \
   -v "$(pwd)/notebook:/home/jovyan/work/notebook" \
   -v "$(pwd)/output:/home/jovyan/work/output" \
   zeyadahmed2005/bd-asign1:latest
@@ -171,9 +178,10 @@ docker run -p 8888:8888 --name youtube-spam-run \
 
 | Mount                                     | Purpose                                                |
 | ----------------------------------------- | ------------------------------------------------------ |
-| `data` → `/home/jovyan/work/data`         | Use / update host dataset from the container           |
 | `notebook` → `/home/jovyan/work/notebook` | Edit the notebook on the host; changes persist         |
 | `output` → `/home/jovyan/work/output`     | Write `cleaned_data.csv`, metrics, figures to the host |
+
+**Bind mount vs volume:** a **bind mount** (`-v host_folder:container_folder`) links a specific folder on our computer into the container, so files written there appear on the host and survive container removal. A **volume** is storage managed by Docker, where we don't choose the host location. We use bind mounts so `output/` is directly visible on our computer.
 
 ### Stop and continue later (same container)
 
@@ -185,18 +193,21 @@ docker start -a youtube-spam-run  # resume and attach logs (token/URL in the ter
 
 If the name `youtube-spam-run` already exists from a previous `docker run`, do **not** run `docker run` again — use `docker start` instead. Only create a new container if you removed the old one.
 
-### Useful container commands
+### Container lifecycle commands
 
 ```bash
+docker images                      # list local images
 docker ps                          # list running containers
 docker ps -a                       # list all containers (including stopped)
 docker logs youtube-spam-run       # Jupyter URL / token if you lost it
+docker inspect youtube-spam-run    # full configuration (mounts, ports, image)
 docker stop youtube-spam-run       # stop (keeps the container)
 docker start youtube-spam-run      # start again later
 docker rm youtube-spam-run         # delete the container only when you no longer need it
-docker images                      # list local images
-docker rmi youtube-spam:latest     # remove a local image tag (optional cleanup)
+docker rmi bd-asign1:latest        # remove the local image tag (optional cleanup)
 ```
+
+Screenshots of the build, `docker images`, `docker ps`, `docker ps -a`, `docker logs`, `docker inspect` and JupyterLab are in `screenshots/`.
 
 ---
 
@@ -212,6 +223,8 @@ docker rmi youtube-spam:latest     # remove a local image tag (optional cleanup)
 | **Full reference** | `zeyadahmed2005/bd-asign1:latest`                 |
 | **Hub page**       | https://hub.docker.com/r/zeyadahmed2005/bd-asign1 |
 
+The published image was pulled and run successfully by **TODO: teammate name** on **TODO: date** (screenshots in `screenshots/`).
+
 ### Push (maintainers)
 
 ```bash
@@ -224,11 +237,27 @@ docker push zeyadahmed2005/bd-asign1:latest
 Hub page: https://hub.docker.com/r/zeyadahmed2005/bd-asign1
 
 ```bash
-docker pull zeyadahmed2005/bd-asign1
-docker run -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1
+docker pull zeyadahmed2005/bd-asign1:latest
 ```
 
-(`docker pull` uses the `latest` tag by default when none is specified. Omit `--rm` so you can `docker start youtube-spam-run` later.)
+Run it from a folder that contains an `output/` folder. Only `output/` is mounted, so the notebook baked into the image is used and the results are saved on the host:
+
+```bat
+:: Windows Command Prompt
+docker run -p 8888:8888 --name youtube-spam-run -v "%cd%\output:/home/jovyan/work/output" zeyadahmed2005/bd-asign1:latest
+```
+
+```powershell
+# PowerShell
+docker run -p 8888:8888 --name youtube-spam-run -v "${PWD}/output:/home/jovyan/work/output" zeyadahmed2005/bd-asign1:latest
+```
+
+```bash
+# Linux / macOS / Git Bash
+docker run -p 8888:8888 --name youtube-spam-run -v "$(pwd)/output:/home/jovyan/work/output" zeyadahmed2005/bd-asign1:latest
+```
+
+(Omit `--rm` so you can `docker start youtube-spam-run` later.)
 
 ---
 
@@ -238,7 +267,7 @@ docker run -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1
 
 ```bash
 # 1. Clone / open the project, then enter the project root
-cd Big_Data_assignment_1
+cd bd-a1
 
 # 2. Confirm Docker is running
 docker version
@@ -247,11 +276,11 @@ docker version
 python prepare_dataset.py
 
 # 4. Build and tag
-docker build -f dockerfile -t youtube-spam:latest -t zeyadahmed2005/bd-asign1:latest .
+docker build -t bd-asign1:latest -t zeyadahmed2005/bd-asign1:latest .
 
-# 5. Run with mounts so outputs land on the host (PowerShell example; no --rm so you can resume)
+# 5. Run with bind mounts so outputs land on the host (PowerShell example; no --rm so you can resume)
+#    Command Prompt: use -v "%cd%\notebook:..." and -v "%cd%\output:..." on one line instead
 docker run -p 8888:8888 --name youtube-spam-run `
-  -v "${PWD}/data:/home/jovyan/work/data" `
   -v "${PWD}/notebook:/home/jovyan/work/notebook" `
   -v "${PWD}/output:/home/jovyan/work/output" `
   zeyadahmed2005/bd-asign1:latest
@@ -265,8 +294,9 @@ docker run -p 8888:8888 --name youtube-spam-run `
 ### B. From Docker Hub only (no local build)
 
 ```bash
-docker pull zeyadahmed2005/bd-asign1
-docker run -p 8888:8888 --name youtube-spam-run zeyadahmed2005/bd-asign1
+docker pull zeyadahmed2005/bd-asign1:latest
+# Run from a folder that contains an output/ folder (Command Prompt shown; see "Pull and run" for other shells)
+docker run -p 8888:8888 --name youtube-spam-run -v "%cd%\output:/home/jovyan/work/output" zeyadahmed2005/bd-asign1:latest
 # Open Jupyter → notebook/analysis.ipynb → Run All
 # Later: docker start -a youtube-spam-run
 ```
@@ -347,11 +377,11 @@ Full detail: [`output/cluster_summary.txt`](output/cluster_summary.txt).
 
 ## Outputs
 
-| File                         | Description                                                           |
-| ---------------------------- | --------------------------------------------------------------------- |
-| `output/cleaned_data.csv`    | Cleaned comments, engineered features, and final cluster id           |
-| `output/model_metrics.txt`   | Classification metrics, confusion matrix, CV scores, top coefficients |
-| `output/cluster_summary.txt` | Silhouette / inertia by k, cluster sizes, top terms, label cross-tab  |
-| `output/figures/`            | Plots created when the notebook is run (directory created at runtime) |
+| File                         | Description                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `output/cleaned_data.csv`    | Cleaned comments, engineered features, and final cluster id                                                                            |
+| `output/model_metrics.txt`   | Classification metrics, confusion matrix, CV scores, top coefficients                                                                  |
+| `output/cluster_summary.txt` | Silhouette / inertia by k, cluster sizes, top terms, label cross-tab                                                                   |
+| `output/figures/`            | Saved plots: correlation heatmap, word frequency, group comparison, confusion matrices, sampling comparison, k selection, cluster plot |
 
 ---
